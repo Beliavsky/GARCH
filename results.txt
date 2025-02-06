@@ -1,0 +1,23 @@
+                    iseed:                  123
+                     #obs:                10000
+seed vector: 1000123 2000123 3000123 4000123 5000123 6000123 7000123 8000123
+              GARCH model: gjr_garch 
+ Conditional distribution: normal
+   Number of observations:                10000
+
+               parameters:        mu     omega     alpha     gamma      beta
+                     true:  0.000000  0.100000  0.100000  0.100000  0.800000
+                estimated: -0.017736  0.117329  0.087711  0.101340  0.800561
+           Log-likelihood:        -16677.550339
+         loglik_gjr_garch:        -16677.550339
+  #Nelder-Mead iterations:                  324
+Convergence achieved.
+
+                     stat:      mean      sd        skew      kurt      min       max 
+                    sigma:  1.321965  0.363676  1.658247  4.323743  0.778857  3.717332
+                sigma_est:  1.319146  0.339369  1.731957  4.704479  0.827959  3.617015
+
+kurtosis of ret, ret/sigma, ret/sigma_est     0.9588     0.0213     0.0219
+   corr(sigma, sigma_est):             0.999808
+               ACF(ret^2):  0.192607  0.146157  0.176576  0.134847  0.143951  0.151566  0.108715  0.142993  0.097928  0.109059
+   ACF((ret/sigma_est)^2): -0.006205 -0.012378  0.006382  0.003301 -0.006140  0.009679 -0.003569  0.020307 -0.011688  0.002680
