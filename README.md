@@ -17,7 +17,7 @@ This program simulates a 10000 observations of a GJR-GARCH(1,1) process and then
   - Autocorrelation function (ACF) of squared returns and of the squared standardized returns.
   - Correlation between the true and estimated volatilities.
 
-## Explanation of Sample Output
+## Explanation of Sample Output in `results.txt`
 
 ### 1. Model Specification
 
