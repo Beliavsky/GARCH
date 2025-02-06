@@ -1,8 +1,8 @@
-### GJR-GARCH Simulation and Estimation
+## GJR-GARCH Simulation and Estimation
 
 This program simulates a 10000 observations of a GJR-GARCH(1,1) process and then fits a GJR-GARCH model to the simulated returns.
 
-## Code Overview
+### Code Overview
 
 - **Simulation:**  
   The program generates 10,000 observations from a GJR-GARCH process using the true parameters.
