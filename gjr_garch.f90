@@ -1,0 +1,107 @@
+module gjr_garch_mod
+use        kind_mod, only: dp
+use nelder_mead_mod, only: nelder_mead
+use     obj_fun_mod, only: xret, xdist, gjr_garch_sigma
+use basic_stats_mod, only: variance
+use      random_mod, only: random_normal
+use   constants_mod, only: pi
+use        util_mod, only: assert_equal, default
+implicit none
+private
+public :: fit_gjr_garch, simulate_gjr_garch, nparam_gjr_garch
+integer, parameter :: nparam_gjr_garch = 5
+contains
+!------------------------------------------------------------
+! Subroutine to fit the GJR-GARCH(1,1) model.
+!
+! Input:
+! ret      -- Array of returns.
+! n        -- Number of observations.
+! dist     -- Distribution flag ("normal" or "laplace").
+! max_iter -- (optional) max # of Nelder-Mead iterations
+! tol      -- (optional) convergence criterion for value of likelihood
+!
+! Output:
+! par_out -- Estimated parameters: [mu, ω, α, γ, β].
+! logL    -- Final (maximized) log likelihood.
+! info    -- Convergence flag (0 = converged, 1 = max_iter reached).
+! niter   -- # of iterations in Nelder-Mead
+!------------------------------------------------------------
+subroutine fit_gjr_garch(ret, dist, par_out, logL, info, niter, max_iter, &
+   tol, sigma)
+character(len=*), intent(in) :: dist
+real(kind=dp)   , intent(in) :: ret(:)
+real(kind=dp)   , intent(out) :: par_out(:), logL
+integer         , intent(out) :: info
+integer, intent(out), optional :: niter
+integer, intent(in) , optional :: max_iter
+real(kind=dp), intent(in), optional :: tol
+real(kind=dp), intent(out), optional :: sigma(:)
+real(kind=dp) :: x0(nparam_gjr_garch)
+real(kind=dp) :: tol_
+integer :: n, max_iter_
+logical, parameter :: print_guess_ = .false.
+character (len=*), parameter :: msg = "in fit_gjr_garch, "
+call assert_equal(size(par_out), nparam_gjr_garch, &
+   msg // "size(par_out)")
+max_iter_ = default(1000, max_iter)
+n = size(ret)
+if (present(sigma)) call assert_equal(size(sigma), n, msg // "size(sigma)")
+!--- Set the module variables for the objective function.
+xret = ret
+xdist = dist
+tol_ = default(1.0e-10_dp, tol)
+
+!--- Set up an initial guess.
+x0(1) = sum(ret) / n ! mu
+x0(2) = 0.1_dp * variance(ret) ! ω
+x0(3) = 0.05_dp ! α
+x0(4) = 0.05_dp ! γ
+x0(5) = 0.9_dp  ! β
+if (print_guess_) print "(/,'in fit_gjr_garch, x0:', *(1x,f12.6))", x0
+!--- Run the Nelder–Mead optimizer.
+call nelder_mead(x0, max_iter_, tol_, par_out, logL, info, &
+         niter) ! output: par_out, logL
+! Since we minimized the negative log likelihood, the maximized
+! log–likelihood is its negative.
+logL = -logL
+if (present(sigma)) sigma = gjr_garch_sigma(ret, par_out)
+end subroutine fit_gjr_garch
+
+!------------------------------------------------------------
+! Subroutine to simulate a GJR-GARCH(1,1) process.
+!
+! Input:
+! mu    -- mean return
+! omega -- variance constant
+! alpha -- symmetric weight on past squared return
+! gamma -- weight on past squared return when return is negative
+! beta  -- weight on previous variance
+!
+! Output:
+! ret -- Simulated return series (allocated inside).
+!------------------------------------------------------------
+subroutine simulate_gjr_garch(mu, omega, alpha, gamma, beta, ret, sigma)
+real(kind=dp), intent(in) :: mu, omega, alpha, gamma, beta
+real(kind=dp), intent(out) :: ret(:)
+real(kind=dp), intent(out), optional :: sigma(:)
+real(kind=dp) :: uc_var, sigma2, noise
+integer :: i, n
+real(kind=dp) :: z, sigma_i
+n = size(ret)
+if (present(sigma)) call assert_equal(size(sigma), n, &
+   "in simulate_gjr_garch, size(sigma)")
+uc_var = omega / (1.0_dp - alpha - 0.5_dp*gamma - beta)
+sigma2 = uc_var
+do i = 1, n
+   z = random_normal()
+   sigma_i = sqrt(sigma2)
+   noise = sigma_i * z
+   if (present(sigma)) sigma(i) = sigma_i
+   ret(i) = mu + noise
+   sigma2 = (alpha + merge(gamma,0.0_dp,noise < 0.0_dp)) * noise**2 &
+            + beta*sigma2 + omega
+end do
+end subroutine simulate_gjr_garch
+
+end module gjr_garch_mod

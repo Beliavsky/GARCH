@@ -1,0 +1,194 @@
+module obj_fun_mod
+  use        kind_mod, only: dp
+  use  constants_mod, only: pi, log_two, log_two_pi, sqrt_two
+  use basic_stats_mod, only: variance
+  implicit none
+  private
+  public :: obj_fun, xret, xdist, garch_model, neg_loglik_garch, neg_loglik_gjr_garch, gjr_garch_sigma
+
+  real(kind=dp), allocatable :: xret(:)  ! returns
+  character (len=10)         :: xdist    ! conditional distribution ("normal" or "laplace")
+  character (len=10)         :: garch_model
+  real(kind=dp), parameter   :: bad_nll = 1.0e10_dp
+
+contains
+
+  function obj_fun(x) result(y)
+  ! Selects the appropriate negative log likelihood
+  ! function depending on the chosen model.
+    real(kind=dp), intent(in) :: x(:)
+    real(kind=dp)             :: y
+
+    select case (garch_model)
+      case ("gjr_garch")
+        y = neg_loglik_gjr_garch(x)
+      case ("garch")
+        y = neg_loglik_garch(x)
+    end select
+  end function obj_fun
+
+  function neg_loglik_garch(par) result(nll)
+  !------------------------------------------------------------
+  ! Function to compute the negative log likelihood for the
+  ! symmetric GARCH(1,1) model.
+  !
+  ! Model:
+  !    r_t = mu + ε_t,
+  !    σ_t² = ω + α (r_{t-1} - mu)² + β σ_{t-1}².
+  !
+  ! The density is chosen via the character variable XDIST ("normal" or "laplace").
+  ! A penalty (returning a huge value) is applied if any constraints are violated:
+  !    ω > 0,  α ≥ 0,  β ≥ 0, and (α + β) < 1.
+  !------------------------------------------------------------
+    real(kind=dp), intent(in) :: par(4)
+    real(kind=dp)             :: nll
+    real(kind=dp)             :: mu, omega, alpha, beta, r, sigma
+    real(kind=dp), allocatable :: sig2(:)
+    integer                   :: n, t
+
+    n = size(xret)
+
+    ! Unpack parameters.
+    mu    = par(1)
+    omega = par(2)
+    alpha = par(3)
+    beta  = par(4)
+
+    ! Impose parameter constraints.
+    if (omega <= 0.0_dp .or. alpha < 0.0_dp .or. beta < 0.0_dp .or. (alpha + beta) >= 1.0_dp) then
+      nll = bad_nll
+      return
+    end if
+
+    allocate(sig2(n))
+    ! Use the sample variance as the starting value for σ².
+    sig2(1) = variance(xret)
+    if (sig2(1) <= 0.0_dp) sig2(1) = 1.0e-6_dp
+
+    nll = 0.0_dp
+    do t = 1, n
+       if (t > 1) then
+          r = xret(t-1) - mu
+          sig2(t) = omega + alpha*r**2 + beta*sig2(t-1)
+          if (sig2(t) <= 0.0_dp) then
+             nll = bad_nll
+             return
+          end if
+       end if
+
+       r = xret(t) - mu
+       if (xdist == "normal") then
+          nll = nll + 0.5_dp*log_two_pi + 0.5_dp*log(sig2(t)) + 0.5_dp*(r**2/sig2(t))
+       else if (xdist == "laplace") then
+          sigma = sqrt(sig2(t))
+          nll = nll + 0.5_dp*log_two + log(sigma) + sqrt_two*abs(r)/sigma
+       end if
+    end do
+  end function neg_loglik_garch
+
+  function neg_loglik_gjr_garch(par) result(nll)
+  !------------------------------------------------------------
+  ! Function to compute the negative log likelihood for the
+  ! GJR-GARCH(1,1) model.
+  !
+  ! Model:
+  !    r_t = mu + ε_t,
+  !    σ_t² = ω + α ε_{t-1}² + γ I(ε_{t-1}<0) ε_{t-1}² + β σ_{t-1}².
+  !
+  ! The density is chosen via the character variable XDIST ("normal" or "laplace").
+  ! A penalty (returning a huge value) is applied if any constraints are violated:
+  !    ω > 0,  α ≥ 0,  γ ≥ 0,  β ≥ 0, and (α + 0.5*γ + β) < 1.
+  !------------------------------------------------------------
+    real(kind=dp), intent(in) :: par(5)
+    real(kind=dp)             :: nll
+    real(kind=dp)             :: mu, omega, alpha, gamma, beta, r, sigma
+    real(kind=dp), allocatable :: sig2(:)
+    integer                   :: n, t
+
+    n = size(xret)
+
+    ! Unpack parameters.
+    mu    = par(1)
+    omega = par(2)
+    alpha = par(3)
+    gamma = par(4)
+    beta  = par(5)
+
+    ! Impose parameter constraints.
+    if (omega <= 0.0_dp .or. alpha < 0.0_dp .or. gamma < 0.0_dp .or. beta < 0.0_dp .or. &
+        (alpha + 0.5_dp*gamma + beta) >= 1.0_dp) then
+       nll = bad_nll
+       return
+    end if
+
+    allocate(sig2(n))
+    ! Use the sample variance as the starting value for σ².
+    sig2(1) = variance(xret)
+    if (sig2(1) <= 0.0_dp) sig2(1) = 1.0e-6_dp
+
+    nll = 0.0_dp
+    do t = 1, n
+       if (t > 1) then
+          r = xret(t-1) - mu
+          sig2(t) = omega + alpha*r**2 + gamma*merge(r**2, 0.0_dp, (r < 0.0_dp)) + beta*sig2(t-1)
+          if (sig2(t) <= 0.0_dp) then
+             nll = bad_nll
+             return
+          end if
+       end if
+
+       r = xret(t) - mu
+       if (xdist == "normal") then
+          nll = nll + 0.5_dp*log_two_pi + 0.5_dp*log(sig2(t)) + &
+                0.5_dp*(r**2/sig2(t))
+       else if (xdist == "laplace") then
+          sigma = sqrt(sig2(t))
+          nll = nll + 0.5_dp*log_two + log(sigma) + sqrt_two*abs(r)/sigma
+       end if
+    end do
+  end function neg_loglik_gjr_garch
+
+  function gjr_garch_sigma(xxret, par) result(sigma)
+  !> Computes the conditional standard deviation (σ_t) for the GJR-GARCH(1,1) model.
+  !! Given the parameter vector `par` and a series of returns `xxret`, it iteratively computes
+  !! the time-varying variance using:
+  !!    σ_t² = ω + α ε_{t-1}² + γ I(ε_{t-1} < 0) ε_{t-1}² + β σ_{t-1}²,
+  !! and returns the square root of the variance (σ_t) at each time step.
+  !! If any variance value becomes negative, the corresponding σ_t is set to -1.0.
+    real(kind=dp), intent(in) :: par(5)
+    real(kind=dp), intent(in) :: xxret(:)
+    real(kind=dp)             :: sigma(size(xxret))
+    real(kind=dp)             :: mu, omega, alpha, gamma, beta, r
+    real(kind=dp), allocatable :: sig2(:)
+    integer                   :: n, t
+    n = size(xxret)
+    ! Unpack parameters.
+    mu    = par(1)
+    omega = par(2)
+    alpha = par(3)
+    gamma = par(4)
+    beta  = par(5)
+    allocate(sig2(n))
+    ! Use the sample variance as the starting value for σ².
+    sig2(1) = variance(xxret)
+    if (sig2(1) <= 0.0_dp) sig2(1) = 1.0e-6_dp
+    do t = 1, n
+       if (t > 1) then
+          r = xxret(t-1) - mu
+          sig2(t) = omega + alpha*r**2 + gamma*merge(r**2, 0.0_dp, (r < 0.0_dp)) + beta*sig2(t-1)
+          if (sig2(t) < 0.0_dp) then
+             sigma(t) = -1.0_dp
+          else
+             sigma(t) = sqrt(sig2(t))
+          end if
+       end if
+       r = xxret(t) - mu
+    end do
+    where (sig2 >= 0.0_dp)
+       sigma = sqrt(sig2)
+    elsewhere
+       sigma = -1.0_dp
+    end where
+  end function gjr_garch_sigma
+
+end module obj_fun_mod
