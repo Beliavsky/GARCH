@@ -6,7 +6,8 @@ module random_mod
   public :: random_normal, random_gamma, random_student_t, &
             random_seed_init
   interface random_normal
-     module procedure random_normal_scalar, random_normal_vec
+     module procedure random_normal_scalar, random_normal_vec, &
+                      random_normal_mat
   end interface random_normal
   interface random_student_t
      module procedure random_student_t_scalar, random_student_t_vec
@@ -45,6 +46,15 @@ do i=1,n
    z(i) = random_normal_scalar()
 end do
 end function random_normal_vec
+
+function random_normal_mat(n1, n2) result(z)
+integer, intent(in) :: n1, n2
+real(kind=dp)       :: z(n1, n2)
+integer             :: i2
+do i2=1,n2
+   z(:,i2) = random_normal_vec(n1)
+end do
+end function random_normal_mat
 
   !------------------------------------------------------------
   ! Function: random_gamma

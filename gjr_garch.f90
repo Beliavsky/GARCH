@@ -16,10 +16,12 @@ contains
 !
 ! Input:
 ! ret      -- Array of returns.
-! n        -- Number of observations.
 ! dist     -- Distribution flag ("normal" or "laplace").
 ! max_iter -- (optional) max # of Nelder-Mead iterations
 ! tol      -- (optional) convergence criterion for value of likelihood
+! alpha0 -- (optional) guess for weight on past squared return
+! gamma0 -- (optional) guess for weight on past squared return when return is negative
+! beta0  -- (optional) guess for weight on previous variance
 !
 ! Output:
 ! par_out -- Estimated parameters: [mu, ω, α, γ, β].
@@ -28,7 +30,7 @@ contains
 ! niter   -- # of iterations in Nelder-Mead
 !------------------------------------------------------------
 subroutine fit_gjr_garch(ret, dist, par_out, logL, info, niter, max_iter, &
-   tol, sigma)
+   tol, sigma, alpha0, gamma0, beta0)
 character(len=*), intent(in) :: dist
 real(kind=dp)   , intent(in) :: ret(:)
 real(kind=dp)   , intent(out) :: par_out(:), logL
@@ -37,6 +39,7 @@ integer, intent(out), optional :: niter
 integer, intent(in) , optional :: max_iter
 real(kind=dp), intent(in), optional :: tol
 real(kind=dp), intent(out), optional :: sigma(:)
+real(kind=dp), intent(in), optional :: alpha0, gamma0, beta0
 real(kind=dp) :: x0(nparam_gjr_garch)
 real(kind=dp) :: tol_
 integer :: n, max_iter_
@@ -55,9 +58,9 @@ tol_ = default(1.0e-10_dp, tol)
 !--- Set up an initial guess.
 x0(1) = sum(ret) / n ! mu
 x0(2) = 0.1_dp * variance(ret) ! ω
-x0(3) = 0.05_dp ! α
-x0(4) = 0.05_dp ! γ
-x0(5) = 0.9_dp  ! β
+x0(3) = default(0.05_dp, alpha0) ! α
+x0(4) = default(0.05_dp, gamma0) ! γ
+x0(5) = default(0.9_dp, beta0)  ! β
 if (print_guess_) print "(/,'in fit_gjr_garch, x0:', *(1x,f12.6))", x0
 !--- Run the Nelder–Mead optimizer.
 call nelder_mead(x0, max_iter_, tol_, par_out, logL, info, &
@@ -103,5 +106,4 @@ do i = 1, n
             + beta*sigma2 + omega
 end do
 end subroutine simulate_gjr_garch
-
 end module gjr_garch_mod

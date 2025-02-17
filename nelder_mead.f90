@@ -36,7 +36,7 @@ contains
     real(kind=dp) :: f_diff
     integer, allocatable :: idx(:)
     n = size(x0)
-    if (size(xopt) /= n) stop "xopt has wrong size"
+    if (size(xopt) /= n) error stop "in nelder_mead, xopt has wrong size"
     ! Coefficients.
     alpha = 1.0_dp    ! reflection
     gamma = 2.0_dp    ! expansion
