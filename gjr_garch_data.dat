@@ -1,0 +1,10 @@
+spy_efa_eem_tlt.csv ! prices_file
+4 1000 ! max_col -- max # of columns of prices to read
+100.0 ! scale_ret
+0 ! nacf -- # of autocorrelations of squared returns to print
+2 normal laplace ! dist -- conditional distribution
+10000 ! max_iter_nm -- max # of Nelder-Mead iterations
+1.0e-20 ! lik_tol -- convergence criterion for GARCH likelihood
+0.05 0.05 ! alpha0 -- guess for weight on past squared return
+0.05 ! gamma0 -- guess for weight on past squared return when return is negative
+0.8 0.9  ! beta0  -- guess for weight on previous variance
