@@ -4,7 +4,7 @@ use kind_mod, only: dp
 implicit none
 private
 public :: default, assert_equal, write_merge, split_string, display, &
-   print_time_elapsed, read_words_line, str
+   print_time_elapsed, read_words_line, str, print_table
 interface default
    module procedure default_int, default_real, default_logical, &
       default_character
@@ -198,9 +198,36 @@ end if
 end subroutine read_words_line
 
 function str(i) result(text)
+! convert integer to string
 integer, intent(in) :: i
 character (len=20) :: text
 write (text,"(i0)") i
 end function str
+
+subroutine print_table(x, row_names, col_names, outu, &
+   fmt_col_names, fmt_row, fmt_header, fmt_trailer)
+! print a table with row and column names
+real(kind=dp)    , intent(in) :: x(:,:) ! matrix to be printed
+character (len=*), intent(in) :: row_names(:), col_names(:)
+integer          , intent(in), optional :: outu ! output unit
+character (len=*), intent(in), optional :: fmt_col_names, fmt_row, &
+   fmt_header, fmt_trailer
+integer                       :: i, n1, n2, outu_
+character (len=*), parameter  :: msg="in print_table, "
+character (len=100) :: fmt_col_names_, fmt_row_
+n1 = size(x, 1)
+n2 = size(x, 2)
+call assert_equal(size(row_names), n1, msg // "size(row_names)")
+call assert_equal(size(col_names), n2, msg // "size(col_names)")
+fmt_col_names_ = default("(*(a12,:,1x))", fmt_col_names)
+fmt_row_ = default("(a12, *(1x,f12.6))", fmt_row)
+outu_ = default(output_unit, outu)
+if (present(fmt_header)) write (outu_, fmt_header)
+write (outu_, fmt_col_names_) "", (trim(col_names(i)), i=1,n2)
+do i=1,n1
+   write (outu_, fmt_row_) trim(row_names(i)), x(i,:)
+end do
+if (present(fmt_trailer)) write (outu_, fmt_trailer)
+end subroutine print_table
 
 end module util_mod
