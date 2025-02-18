@@ -398,14 +398,14 @@ end subroutine simulate_ew_arch
 ! niter   -- # of iterations in Nelder-Mead
 !------------------------------------------------------------
 subroutine fit_arch(ret, dist, par_out, logL, info, niter, max_iter, &
-   tol, sigma)
+   tol, sigma, alpha0)
 character(len=*), intent(in) :: dist
 real(kind=dp)   , intent(in) :: ret(:)
 real(kind=dp)   , intent(out) :: par_out(:), logL
 integer         , intent(out) :: info
 integer, intent(out), optional :: niter
 integer, intent(in) , optional :: max_iter
-real(kind=dp), intent(in), optional :: tol
+real(kind=dp), intent(in), optional :: tol, alpha0
 real(kind=dp), intent(out), optional :: sigma(:)
 real(kind=dp) :: x0(size(par_out))
 real(kind=dp) :: tol_
@@ -424,7 +424,7 @@ tol_ = default(1.0e-10_dp, tol)
 !--- Set up an initial guess.
 x0(1) = sum(ret) / n ! mu
 x0(2) = variance(ret) ! ω
-x0(3:) = 0.0_dp
+x0(3:) = default(0.0_dp, alpha0) ! 0.1_dp ! 0.0_dp
 if (print_guess_) print "(/,'in fit_arch, x0:', *(1x,f12.6))", x0
 !--- Run the Nelder–Mead optimizer.
 call nelder_mead(x0, max_iter_, tol_, par_out, logL, info, &
