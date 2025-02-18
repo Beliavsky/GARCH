@@ -1,5 +1,5 @@
 spy_efa_eem_tlt.csv ! prices_file
-4 1000 ! max_col -- max # of columns of prices to read
+1000 ! max_col -- max # of columns of prices to read
 100.0 ! scale_ret
 5 ! nacfsq  -- # of autocorrelations of squared returns to print
 0 ! nacfabs -- # of autocorrelations of absolute returns to print
@@ -10,3 +10,4 @@ spy_efa_eem_tlt.csv ! prices_file
 0.05 ! gamma0 -- guess for weight on past squared return when return is negative
 0.8 0.9  ! beta0  -- guess for weight on previous variance
 2 garch gjr_garch ! garch_models -- list of GARCH models to fit
+F ! print_all_fits

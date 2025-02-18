@@ -5,7 +5,7 @@ use           garch_mod, only: fit_garch, nparam_garch, nparam_gjr_garch, &
                                print_garch_results, fit_gjr_garch, garch_str, &
                                gjr_garch_str, print_garch_lik, print_garch_lik
 use         obj_fun_mod, only: garch_model
-use            util_mod, only: write_merge, read_words_line, str
+use            util_mod, only: write_merge, read_words_line, str, exe_name
 use     basic_stats_mod, only: mean, sd, kurtosis, basic_stats, &
                                correl, acf
 use       dataframe_mod, only: DataFrame, print_summary, operator(*), &
@@ -31,7 +31,9 @@ real(kind=dp) :: garch_par(nparam_garch), gjr_garch_par(nparam_gjr_garch)  ! est
 character (len=20), allocatable :: dist(:), garch_models(:), symbols(:)
 real(kind=dp), allocatable :: ret(:), logl_garch(:,:), logl_gjr_garch(:,:)
 character (len=100) :: prices_file
+logical :: print_all_fits
 open (newunit=iu, file=infile, action="read", status="old")
+print fmt_cc, "program", trim(exe_name())
 print fmt_cc, "infile", infile
 read (iu,*) prices_file
 read (iu,*) max_col ! max # of columns of prices to read
@@ -45,6 +47,7 @@ read (iu,*) alpha0  ! guess for weight on past squared return
 read (iu,*) gamma0   ! guess for weight on past squared return when return is negative
 read (iu,*) beta0   ! guess for weight on previous variance
 call read_words_line(iu, garch_models)  !list of GARCH models to fit
+read (iu,*) print_all_fits
 print fmt_cc, "prices file", trim(prices_file)
 print fmt_cr, "return scaling", scale_ret
 print fmt_ci, "max_iter_nm", max_iter_nm
@@ -71,7 +74,8 @@ nfits = 0
 allocate (logl_garch(nsym, ndist), logl_gjr_garch(nsym, ndist))
 do isym=1,nsym
 do idist=1,ndist
-   write (*, "(/,a25,':',*(1x,a))") "symbol", trim(df_ret%columns(isym))
+   if (print_all_fits) write (*, "(/,a25,':',*(1x,a))") "symbol", &
+      trim(df_ret%columns(isym))
    ret = df_ret%values(:,isym)
    if (any(garch_models == garch_str)) then
       call fit_garch(ret, dist(idist), garch_par, logL, info, niter=niter_nm, &
@@ -79,9 +83,9 @@ do idist=1,ndist
          beta0=beta0)
       nfits = nfits + 1
       logl_garch(isym, idist) = logl
-      call print_garch_results(garch_model, dist(idist), garch_par, &
-         logl, niter=niter_nm, info=info, sigma_est=sigma_est, ret=ret, &
-         nacfsq=nacfsq, nacfabs=nacfabs, fmt_header="()")
+      if (print_all_fits) call print_garch_results(garch_model, dist(idist), &
+         garch_par, logl, niter=niter_nm, info=info, sigma_est=sigma_est, &
+         ret=ret, nacfsq=nacfsq, nacfabs=nacfabs, fmt_header="()")
    end if
    if (any(garch_models == gjr_garch_str)) then
       call fit_gjr_garch(ret, dist(idist), gjr_garch_par, logL, info, niter=niter_nm, &
@@ -89,9 +93,9 @@ do idist=1,ndist
          gamma0=gamma0, beta0=beta0)
       nfits = nfits + 1
       logl_gjr_garch(isym, idist) = logl
-      call print_garch_results(garch_model, dist(idist), gjr_garch_par, &
-         logl, niter=niter_nm, info=info, sigma_est=sigma_est, ret=ret, &
-         nacfsq=nacfsq, nacfabs=nacfabs, fmt_header="()")
+      if (print_all_fits) call print_garch_results(garch_model, dist(idist), &
+         gjr_garch_par, logl, niter=niter_nm, info=info, sigma_est=sigma_est, &
+         ret=ret, nacfsq=nacfsq, nacfabs=nacfabs, fmt_header="()")
    end if
 end do
 end do
@@ -101,5 +105,5 @@ if (any(garch_models == garch_str)) &
 if (any(garch_models == gjr_garch_str)) &
    call print_garch_lik(gjr_garch_str, symbols, dist, logl_gjr_garch)
 call print_elapsed_times()
-print "(/,a)", "(8) finished xgeneral_garch_data"
+print "(/,a)", "(10) finished xgeneral_garch_data"
 end program xgeneral_garch_data
