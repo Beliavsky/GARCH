@@ -1,12 +1,12 @@
 module basic_stats_mod
 use iso_fortran_env, only: output_unit
 use kind_mod, only: dp
-use util_mod, only: default
+use util_mod, only: default, print_table
 implicit none
 private
 public :: mean, variance, sd, mean_and_sd, kurtosis, basic_stats, &
    print_basic_stats, basic_stats_names, correl, acf, nbasic_stats, &
-   stat, stats, corr_mat, rms, moving_sum, moving_average
+   stat, stats, corr_mat, rms, moving_sum, moving_average, print_corr_mat
 integer, parameter :: nbasic_stats = 6
 character (len=*), parameter :: basic_stats_names(nbasic_stats) = &
    [character(len=4) :: "mean", "sd", "skew", "kurt", "min", "max"]
@@ -196,6 +196,22 @@ do lag = 1, nacf
    xacf(lag) = sum(xdm(1:n-lag) * xdm(lag+1:n)) / denom
 end do
 end function acf
+
+subroutine print_corr_mat(x, col_names, outu, fmt_col_names, fmt_row, &
+   fmt_header, fmt_trailer)
+! print the correlation matrix of the columns of x(:,:)
+real(kind=dp), intent(in) :: x(:,:)
+character (len=*), intent(in) :: col_names(:)
+integer          , intent(in), optional :: outu ! output unit
+character (len=*), intent(in), optional :: fmt_header, fmt_trailer, &
+   fmt_col_names, fmt_row
+character (len=100) :: fmt_col_names_, fmt_row_
+fmt_col_names_ = default("(*(a8,:,1x))", fmt_col_names)
+fmt_row_ = default("(a8, *(1x,f8.4))", fmt_row)
+call print_table(corr_mat(x), row_names=col_names, col_names=col_names, &
+   fmt_header=fmt_header, fmt_trailer=fmt_trailer, outu=outu, &
+   fmt_col_names=fmt_col_names_, fmt_row=fmt_row_)
+end subroutine print_corr_mat
 
 pure function corr_mat(x) result(cor)
     ! return the correlation matrix of the columns of x(:,:)
