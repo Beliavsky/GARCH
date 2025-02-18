@@ -1,6 +1,6 @@
 ## GJR-GARCH Simulation and Estimation
 
-The program `xgjr_garch.f90` simulates a 10000 observations of a GJR-GARCH(1,1) process and then fits a GJR-GARCH model to the simulated returns. The [GJR-GARCH](https://frds.io/algorithms/gjr-garch/) model "extends the basic GARCH(1,1) by accounting for leverage effects, where bad news (negative returns) has a greater impact on volatility than good news." Other main programs fit ARCH and GARCH models to financial returns, computed from daily ETF closing prices in `spy_efa_eem_tlt.csv`.
+The program `xgjr_garch.f90` simulates 10000 observations of a GJR-GARCH(1,1) process and then fits a GJR-GARCH model to the simulated returns. The [GJR-GARCH](https://frds.io/algorithms/gjr-garch/) model "extends the basic GARCH(1,1) by accounting for leverage effects, where bad news (negative returns) has a greater impact on volatility than good news." Other main programs fit ARCH and GARCH models to financial returns, computed from daily ETF closing prices in `spy_efa_eem_tlt.csv`.
 
 ### Code Overview
 
