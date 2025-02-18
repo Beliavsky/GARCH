@@ -16,7 +16,7 @@ character (len=*), parameter :: garch_str="garch", gjr_garch_str="gjr_garch", &
    ew_arch_str="ew_arch", arch_str="arch"
 logical, parameter :: call_log_density = .true.
 real(kind=dp), allocatable :: xret(:)  ! returns
-character (len=10)         :: xdist    ! conditional distribution ("normal" or something else)
+character (len=10)         :: xdist="normal"    ! conditional distribution ("normal" or something else)
 character (len=10)         :: garch_model
 real(kind=dp), parameter   :: bad_nll = 1.0e10_dp
 integer                    :: narch
@@ -244,6 +244,7 @@ real(kind=dp)              :: mu, omega, alpha
 real(kind=dp)              :: sig2
 integer                    :: n, t
 real(kind=dp), allocatable :: var_ret(:)
+logical, parameter :: debug = .false.
 n = size(xret)
 ! Unpack parameters.
 mu    = par(1)
@@ -256,9 +257,14 @@ if (narch < 0 .or. omega <= 0.0_dp .or. alpha < 0.0_dp) then
    return
 end if
 nll = 0.0_dp
+if (debug) then
+   print*,"in neg_loglik_ew_arch, narch, var_ret =", narch, var_ret ! debug
+   print*,"size(xret), xret =", size(xret), xret ! debug
+end if
 do t = max(1,narch)+1, n
    sig2 = omega + narch*alpha*var_ret(t-1)
    nll = nll + minus_log_density(xret(t) - mu, xdist, sqrt(sig2))
+   if (debug) print*,"t, sig2, nll =", t, sig2, nll ! debug
    if (sig2 <= 0.0_dp) error stop "sig2 must be positive"
 end do
 end function neg_loglik_ew_arch
@@ -304,12 +310,13 @@ function neg_loglik_arch(par) result(nll)
 ! A penalty (returning a huge value) is applied if any constraints are violated:
 !    ω > 0,  α ≥ 0
 !------------------------------------------------------------
-real(kind=dp), intent(in)  :: par(nparam_ew_arch)
+real(kind=dp), intent(in)  :: par(:)
 real(kind=dp)              :: nll
 real(kind=dp)              :: mu, omega
 real(kind=dp)              :: sig2
 integer                    :: n, t, nlags
 real(kind=dp), allocatable :: alpha(:), ret_sq(:)
+logical, parameter :: debug = .false.
 n = size(xret)
 ! Unpack parameters.
 mu    = par(1)
@@ -323,9 +330,14 @@ if (omega <= 0.0_dp .or. any(alpha < 0.0_dp)) then
    return
 end if
 nll = 0.0_dp
+if (debug) then
+   print*,"in neg_loglik_arch, par =", par
+   print*,"alpha =", alpha ! debug
+end if
 do t = nlags+1, n
    sig2 = omega + sum(alpha(nlags:1:-1)*ret_sq(t-nlags:t-1))
    nll = nll + minus_log_density(xret(t) - mu, xdist, sqrt(sig2))
+   if (debug) print*,"t, sig2, nll =", t, sig2, nll ! debug
    if (sig2 <= 0.0_dp) error stop "sig2 must be positive"
 end do
 end function neg_loglik_arch
@@ -336,7 +348,8 @@ function arch_sigma(xxret, par) result(sigma)
 !! the time-varying variance
 !! and returns the square root of the variance (σ_t) at each time step.
 !! If any variance value becomes negative, the corresponding σ_t is set to -1.0.
-real(kind=dp), intent(in)  :: par(nparam_ew_arch)
+! real(kind=dp), intent(in)  :: par(nparam_ew_arch)
+real(kind=dp), intent(in)  :: par(:)
 real(kind=dp), intent(in)  :: xxret(:)
 real(kind=dp)              :: sigma(size(xxret))
 real(kind=dp)              :: mu, omega
