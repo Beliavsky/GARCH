@@ -35,6 +35,7 @@ contains
     real(kind=dp) :: f_r, f_e, f_c
     real(kind=dp) :: f_diff
     integer, allocatable :: idx(:)
+    logical, parameter :: debug = .false.
     n = size(x0)
     if (size(xopt) /= n) error stop "in nelder_mead, xopt has wrong size"
     ! Coefficients.
@@ -129,7 +130,10 @@ contains
 
        ! Convergence test.
        f_diff = abs(fvals(idx(nvertices)) - fvals(idx(1)))
-!       print*,"iter, f_diff, fvals =", iter, f_diff, fvals
+       if (debug) then
+          print "(/,a,i0,*(f12.4))", "iter, f_diff, fvals = ", iter, f_diff, fvals
+          print "(a,*(f12.4))", "fopt, simplex(:, idx(1)) =", fvals(idx(1)), simplex(:, idx(1))
+       end if
        if (f_diff < tol*(1.0_dp + abs(fvals(idx(1))))) exit
     end do
 
