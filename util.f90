@@ -4,7 +4,7 @@ use kind_mod, only: dp
 implicit none
 private
 public :: default, assert_equal, write_merge, split_string, display, &
-   print_time_elapsed, read_words_line, str, print_table
+   print_time_elapsed, read_words_line, str, print_table, exe_name
 interface default
    module procedure default_int, default_real, default_logical, &
       default_character
@@ -229,5 +229,12 @@ do i=1,n1
 end do
 if (present(fmt_trailer)) write (outu_, fmt_trailer)
 end subroutine print_table
+
+function exe_name() result(xname)
+! return the program name
+character (len=1000) :: xname
+call get_command_argument(0,xname)
+xname = trim(xname)
+end function exe_name
 
 end module util_mod
