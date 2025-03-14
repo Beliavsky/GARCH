@@ -4,7 +4,7 @@ use kind_mod, only: dp
 use util_mod, only: default, print_table
 implicit none
 private
-public :: mean, variance, sd, mean_and_sd, kurtosis, basic_stats, &
+public :: mean, variance, sd, mean_and_sd, skew, kurtosis, basic_stats, &
    print_basic_stats, basic_stats_names, correl, acf, nbasic_stats, &
    stat, stats, corr_mat, rms, moving_sum, moving_average, print_corr_mat
 integer, parameter :: nbasic_stats = 6
