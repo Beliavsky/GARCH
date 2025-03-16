@@ -5,7 +5,8 @@ use iso_fortran_env, only: output_unit
 implicit none
 private
 public :: DataFrame, nrow, ncol, print_summary, random, operator(*), &
-   operator(/), operator(+), operator(-), display
+   operator(/), operator(+), operator(-), display, allocate_df, &
+   operator(**)
 integer, parameter :: nlen_columns = 100, nrows_print = 10 ! number of rows to print by default.
 interface display
    module procedure display_data
@@ -14,7 +15,7 @@ interface operator (*)
    module procedure mult_x_df, mult_df_x, mult_n_df, mult_df_n
 end interface
 interface operator (/)
-   module procedure div_df_x, div_df_n
+   module procedure div_df_x, div_df_n, div_x_df, div_n_df
 end interface
 interface operator (+)
    module procedure add_x_df, add_df_x, add_n_df, add_df_n
@@ -22,6 +23,9 @@ end interface
 interface operator (-)
    module procedure subtract_x_df, subtract_df_x, &
       subtract_n_df, subtract_df_n
+end interface
+interface operator (**)
+   module procedure power_df_n, power_df_x
 end interface
 
 type :: DataFrame
@@ -33,6 +37,24 @@ type :: DataFrame
 end type DataFrame
 
 contains
+
+subroutine allocate_df(df, n1, n2, default_indices, default_columns)
+type(DataFrame), intent(out) :: df
+integer        , intent(in)  :: n1, n2
+logical        , intent(in), optional :: default_indices, default_columns
+integer :: i
+allocate (df%index(n1), df%columns(n2), df%values(n1, n2))
+if (default(.true., default_indices)) then
+   do i=1,n1
+      df%index(i) = i
+   end do
+end if
+if (default(.true., default_columns)) then
+   do i=1,n2
+      write (df%columns(i), "('x',i0)") i
+   end do
+end if
+end subroutine allocate_df
 
 function nrow(df) result(num_rows)
 ! return the # of rows
@@ -138,7 +160,7 @@ do i = 1, nrows
    read(unit, '(A)', iostat=io) line
    if (trim(line) == "") exit
    call split_string(line, ",", tokens)
-   ! First token is the index.
+   ! First token is t<he index.
    read(tokens(1), *) self%index(i)
    ! Remaining tokens are the real values.
    do j = 1, ncols
@@ -241,12 +263,13 @@ end do
 close(unit)
 end subroutine write_csv
 
-subroutine print_summary(self, outu, fmt_trailer)
+subroutine print_summary(self, outu, fmt_header, fmt_trailer)
 type(DataFrame), intent(in) :: self
 integer, intent(in), optional :: outu
-character (len=*), intent(in), optional :: fmt_trailer
+character (len=*), intent(in), optional :: fmt_header, fmt_trailer
 integer :: outu_, nr, nc
 outu_ = default(output_unit, outu)
+if (present(fmt_header)) write (outu_, fmt_header)
 nr = nrow(self)
 nc = ncol(self)
 write(outu_, "('#rows, columns:', 2(1x,i0))") nr, nc
@@ -341,6 +364,24 @@ res = df
 if (allocated(res%values)) res%values = res%values/x
 end function div_df_x
 
+function div_x_df(x, df) result(res)
+! return df / x
+real(kind=dp)  , intent(in) :: x
+type(DataFrame), intent(in) :: df
+type(DataFrame)             :: res
+res = df
+if (allocated(res%values)) res%values = x/res%values
+end function div_x_df
+
+function div_n_df(n, df) result(res)
+! return n / x
+integer        , intent(in) :: n
+type(DataFrame), intent(in) :: df
+type(DataFrame)             :: res
+res = df
+if (allocated(res%values)) res%values = n/res%values
+end function div_n_df
+
 function mult_n_df(n, df) result(res)
 ! return n * df
 integer        , intent(in) :: n
@@ -404,4 +445,21 @@ res = df
 if (allocated(res%values)) res%values = res%values/n
 end function div_df_n
 
+function power_df_n(df, n) result(res)
+! return df**n element-wise
+integer        , intent(in) :: n
+type(DataFrame), intent(in) :: df
+type(DataFrame)             :: res
+res = df
+if (allocated(res%values)) res%values = res%values**n
+end function power_df_n
+
+function power_df_x(df, x) result(res)
+! return df**x element-wise
+real(kind=dp), intent(in)   :: x
+type(DataFrame), intent(in) :: df
+type(DataFrame)             :: res
+res = df
+if (allocated(res%values)) res%values = res%values**x
+end function power_df_x
 end module dataframe_mod
