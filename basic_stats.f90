@@ -4,9 +4,10 @@ use kind_mod, only: dp
 use util_mod, only: default, print_table
 implicit none
 private
-public :: mean, variance, sd, mean_and_sd, skew, kurtosis, basic_stats, &
+public :: mean, variance, sd, mean_and_sd, kurtosis, basic_stats, &
    print_basic_stats, basic_stats_names, correl, acf, nbasic_stats, &
-   stat, stats, corr_mat, rms, moving_sum, moving_average, print_corr_mat
+   stat, stats, corr_mat, rms, moving_sum, moving_average, &
+   print_corr_mat, skew
 integer, parameter :: nbasic_stats = 6
 character (len=*), parameter :: basic_stats_names(nbasic_stats) = &
    [character(len=4) :: "mean", "sd", "skew", "kurt", "min", "max"]
