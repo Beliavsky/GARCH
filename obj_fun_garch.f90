@@ -5,7 +5,7 @@ use basic_stats_mod, only: variance, moving_average
 use     density_mod, only: minus_log_density
 implicit none
 private
-public :: obj_fun, xret, xdist, garch_model, neg_loglik_garch, &
+public :: obj_fun, obj_sub, xret, xdist, garch_model, neg_loglik_garch, &
    neg_loglik_gjr_garch, gjr_garch_sigma, garch_sigma, narch, &
    nparam_gjr_garch, nparam_garch, neg_loglik_ew_arch, &
    garch_str, gjr_garch_str, nparam_ew_arch, ew_arch_str, &
@@ -15,12 +15,21 @@ integer, parameter :: nparam_gjr_garch = 5, nparam_garch=4, &
 character (len=*), parameter :: garch_str="garch", gjr_garch_str="gjr_garch", &
    ew_arch_str="ew_arch", arch_str="arch"
 logical, parameter :: call_log_density = .true.
+logical, parameter :: floor_sig2 = .true. ! impose floor on conditional variance
 real(kind=dp), allocatable :: xret(:)  ! returns
 character (len=10)         :: xdist="normal"    ! conditional distribution ("normal" or something else)
 character (len=10)         :: garch_model
 real(kind=dp), parameter   :: bad_nll = 1.0e10_dp
+real(kind=dp), parameter   :: sig2_min = 1.0e-8_dp ! minimum conditional variance
 integer                    :: narch
 contains
+
+subroutine obj_sub(n, x, f)
+integer      , intent(in)  :: n
+real(kind=dp), intent(in)  :: x(n)
+real(kind=dp), intent(out) :: f
+f = obj_fun(x)
+end subroutine obj_sub
 
 function obj_fun(x) result(y)
 ! Selects the appropriate negative log likelihood
@@ -65,16 +74,18 @@ omega = par(2)
 alpha = par(3)
 beta  = par(4)
 
-! Impose parameter constraints.
-if (omega <= 0.0_dp .or. alpha < 0.0_dp .or. beta < 0.0_dp .or. (alpha + beta) >= 1.0_dp) then
-   nll = bad_nll
-   return
+if (.not. floor_sig2) then
+   ! Impose parameter constraints.
+   if (omega <= 0.0_dp .or. alpha < 0.0_dp .or. beta < 0.0_dp .or. (alpha + beta) >= 1.0_dp) then
+      nll = bad_nll
+      return
+   end if
 end if
 
 allocate(sig2(n))
 ! Use the sample variance as the starting value for σ².
 sig2(1) = variance(xret)
-if (sig2(1) <= 0.0_dp) sig2(1) = 1.0e-6_dp
+if (sig2(1) <= 0.0_dp) sig2(1) = sig2_min
 
 nll = 0.0_dp
 do t = 1, n
@@ -108,7 +119,6 @@ real(kind=dp)             :: nll
 real(kind=dp)             :: mu, omega, alpha, gamma, beta, r
 real(kind=dp), allocatable :: sig2(:)
 integer                   :: n, t
-
 n = size(xret)
 
 ! Unpack parameters.
@@ -118,24 +128,27 @@ alpha = par(3)
 gamma = par(4)
 beta  = par(5)
 
-! Impose parameter constraints.
-if (omega <= 0.0_dp .or. alpha < 0.0_dp .or. gamma < 0.0_dp .or. beta < 0.0_dp .or. &
-(alpha + 0.5_dp*gamma + beta) >= 1.0_dp) then
-nll = bad_nll
-return
+if (.not. floor_sig2) then
+   ! Impose parameter constraints.
+   if (omega <= 0.0_dp .or. alpha < 0.0_dp .or. gamma < 0.0_dp .or. beta < 0.0_dp .or. &
+   (alpha + 0.5_dp*gamma + beta) >= 1.0_dp) then
+      nll = bad_nll
+      return
+   end if
 end if
-
 allocate(sig2(n))
 ! Use the sample variance as the starting value for σ².
 sig2(1) = variance(xret)
-if (sig2(1) <= 0.0_dp) sig2(1) = 1.0e-6_dp
+if (sig2(1) <= 0.0_dp) sig2(1) = sig2_min
 
 nll = 0.0_dp
 do t = 1, n
    if (t > 1) then
       r = xret(t-1) - mu
       sig2(t) = omega + alpha*r**2 + gamma*merge(r**2, 0.0_dp, (r < 0.0_dp)) + beta*sig2(t-1)
-      if (sig2(t) <= 0.0_dp) then
+      if (floor_sig2) then
+         sig2(t) = max(sig2_min, sig2(t))
+      else if (sig2(t) <= 0.0_dp) then
          nll = bad_nll
          return
       end if
@@ -167,7 +180,7 @@ beta  = par(5)
 allocate(sig2(n))
 ! Use the sample variance as the starting value for σ².
 sig2(1) = variance(xxret)
-if (sig2(1) <= 0.0_dp) sig2(1) = 1.0e-6_dp
+if (sig2(1) <= 0.0_dp) sig2(1) = sig2_min
 do t = 1, n
    if (t > 1) then
       r = xxret(t-1) - mu
@@ -209,7 +222,7 @@ beta  = par(4)
 allocate(sig2(n))
 ! Use the sample variance as the starting value for σ².
 sig2(1) = variance(xxret)
-if (sig2(1) <= 0.0_dp) sig2(1) = 1.0e-6_dp
+if (sig2(1) <= 0.0_dp) sig2(1) = sig2_min
 do t = 1, n
    if (t > 1) then
       r = xxret(t-1) - mu
