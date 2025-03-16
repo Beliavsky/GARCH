@@ -19,6 +19,7 @@ contains
   !   xopt     - Estimated minimizer (vector of length n).
   !   fopt     - Function value at xopt.
   !   info     - Convergence flag (0 if converged, 1 if max_iter reached).
+  !   niter (optional) - # of iterations used
   !------------------------------------------------------------
   subroutine nelder_mead(x0, max_iter, tol, xopt, fopt, info, &
                          niter)
