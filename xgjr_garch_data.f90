@@ -5,11 +5,11 @@ use           qsort_mod, only: indexx
 use        gradient_mod, only: gradient  
 use       gjr_garch_mod, only: fit_gjr_garch, nparam_gjr_garch
 use         obj_fun_mod, only: garch_model, obj_fun
-use            util_mod, only: write_merge, read_words_line, str, join, exe_name
+use            util_mod, only: write_merge, read_words_line, str, join, exe_name, join
 use     basic_stats_mod, only: mean, sd, kurtosis, basic_stats, &
                                basic_stats_names, correl, acf, skew
 use       dataframe_mod, only: DataFrame, print_summary, operator(*), &
-                               nrow, ncol
+                               nrow, ncol, shape
 use dataframe_stats_mod, only: simple_ret
 use           table_mod, only: Table, display
 use     table_stats_mod, only: basic_stats_table, corr_table
@@ -23,7 +23,7 @@ integer :: info, niter, isym, nsym, nret, iu, max_col, nacf, &
    max_iter, idist, ndist, nfits
 real(kind=dp), allocatable :: sigma_est(:)
 character (len=*), parameter :: infile = "gjr_garch_data.dat"
-type(DataFrame) :: df, df_ret
+type(DataFrame) :: df, df_ret, df_res
 type(Table) :: ret_stats
 real(kind=dp) :: alpha0, gamma0, beta0 ! initial guesses for GARCH parameters
 real(kind=dp) :: lik_tol ! convergence criterion for GARCH likelihood
@@ -94,7 +94,14 @@ do idist=1,ndist
    call fit_gjr_garch(ret, dist(idist), par_out, logL, info, niter=niter, &
       sigma=sigma_est, max_iter=max_iter, tol=lik_tol, alpha0=alpha0, &
       gamma0=gamma0, beta0=beta0, opt_method=opt_method, rhobeg=rhobeg, &
-      rhoend=rhoend) ! out: par_out, logl, info, niter
+      rhoend=rhoend) ! out: par_out, logl, info, niter, sigma_est
+      print*,"size(ret), size(sigma_est), shape(df_ret)", size(ret), &
+         size(sigma_est), nrow(df_ret), ncol(df_ret), shape(df_ret)
+      print*,"df_ret%columns: ", join(df_ret%columns, " ")
+      df_res = df_ret%loc(columns=df_ret%columns([isym]))
+      call df_res%append_col("vol", sigma_est)
+      call print_summary(df_res)
+      call df_res%write_csv("temp_" // trim(df_ret%columns(isym)) // ".csv")
    logl_mat(isym, idist) = logl
    nfits = nfits + 1
    write (*,*)
