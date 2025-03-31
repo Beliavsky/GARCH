@@ -95,13 +95,10 @@ do idist=1,ndist
       sigma=sigma_est, max_iter=max_iter, tol=lik_tol, alpha0=alpha0, &
       gamma0=gamma0, beta0=beta0, opt_method=opt_method, rhobeg=rhobeg, &
       rhoend=rhoend) ! out: par_out, logl, info, niter, sigma_est
-      print*,"size(ret), size(sigma_est), shape(df_ret)", size(ret), &
-         size(sigma_est), nrow(df_ret), ncol(df_ret), shape(df_ret)
-      print*,"df_ret%columns: ", join(df_ret%columns, " ")
       df_res = df_ret%loc(columns=df_ret%columns([isym]))
-      call df_res%append_col("vol", sigma_est)
-      call print_summary(df_res)
-      call df_res%write_csv("temp_" // trim(df_ret%columns(isym)) // ".csv")
+   call df_res%append_col("vol", sigma_est)
+   call print_summary(df_res)
+   call df_res%write_csv("temp_" // trim(df_ret%columns(isym)) // ".csv")
    logl_mat(isym, idist) = logl
    nfits = nfits + 1
    write (*,*)
