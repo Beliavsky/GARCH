@@ -1,13 +1,14 @@
 module dataframe_mod
 use kind_mod, only: dp
-use util_mod, only: default, split_string
+use util_mod, only: default, split_string, seq, cbind
 use iso_fortran_env, only: output_unit
 implicit none
 private
 public :: DataFrame, nrow, ncol, print_summary, random, operator(*), &
    operator(/), operator(+), operator(-), display, allocate_df, &
-   operator(**)
+   operator(**), shape, subset_stride
 integer, parameter :: nlen_columns = 100, nrows_print = 10 ! number of rows to print by default.
+logical, save :: blank_line_before_display = .true.
 interface display
    module procedure display_data
 end interface display
@@ -33,10 +34,108 @@ type :: DataFrame
    character(len=nlen_columns), allocatable :: columns(:)
    real(kind=dp), allocatable    :: values(:,:)
    contains
-      procedure :: read_csv, display=>display_data, write_csv
+      procedure :: read_csv, display=>display_data, write_csv, irow, icol, &
+         loc, append_col, append_cols, set_col
 end type DataFrame
 
 contains
+
+pure function shape(df) result(ishape)
+! return a 2-element array with the number of rows and columns of the dataframe
+type(DataFrame), intent(in) :: df
+integer                     :: ishape(2)
+ishape = [nrow(df), ncol(df)]
+end function shape
+
+pure function icol(df, ivec) result(df_new)
+! returns a dataframe with the subset of columns in ivec(:)
+class(DataFrame), intent(in) :: df
+integer, intent(in) :: ivec(:)
+type(DataFrame) :: df_new
+df_new = DataFrame(index=df%index, columns=df%columns(ivec), values=df%values(:, ivec))
+end function icol
+
+pure function loc(df, rows, columns) result(df_new)
+! return a subset of a dataframe with the specified rows (index values) and columns
+class(DataFrame), intent(in) :: df
+integer, intent(in), optional :: rows(:)
+character (len=*), intent(in), optional :: columns(:)
+type(DataFrame) :: df_new
+integer, allocatable :: rows_(:)
+character (len=nlen_columns), allocatable :: columns_(:)
+integer :: i
+integer, allocatable :: jrow(:), jcol(:)
+if (present(rows)) then
+   rows_ = rows
+   allocate (jrow(size(rows)))
+   do i=1,size(rows)
+      jrow(i) = findloc(df%index, rows(i), dim=1)
+   end do
+else
+   rows_ = df%index
+   jrow = seq(1, nrow(df))
+end if
+if (present(columns)) then
+   columns_ = columns
+   allocate(jcol(size(columns)))
+   do i=1,size(columns)
+      jcol(i) = findloc(df%columns, columns(i), dim=1)
+   end do
+else
+   columns_ = df%columns
+   jcol = seq(1, ncol(df))
+end if
+df_new = DataFrame(index=rows_, columns=columns_, values=df%values(jrow, jcol))
+end function loc
+
+pure function irow(df, ivec) result(df_new)
+! returns a dataframe with the subset of columns in ivec(:)
+class(DataFrame), intent(in) :: df
+integer, intent(in) :: ivec(:)
+type(DataFrame) :: df_new
+df_new = DataFrame(index=df%index(ivec), columns=df%columns, values=df%values(ivec, :))
+end function irow
+
+pure subroutine set_col(df, column, values)
+! append a column with specified values to DataFrame df if column is not in df,
+! and set the values of that column if it is already present
+class(DataFrame), intent(in out) :: df
+character (len=*), intent(in) :: column
+real(kind=dp), intent(in) :: values(:)
+integer :: jcol
+if (size(values) /= nrow(df)) error stop "in set_col, size(values) /= nrow(df)"
+jcol = findloc(df%columns, column, dim=1)
+if (jcol == 0) then
+   call append_col(df, column, values)
+else
+   df%values(:,jcol) = values
+end if
+end subroutine set_col
+
+pure subroutine append_col(df, column, values)
+! append a column with specified values to DataFrame df
+class(DataFrame), intent(in out) :: df
+character (len=*), intent(in) :: column
+real(kind=dp), intent(in) :: values(:)
+character (len=nlen_columns) :: column_
+if (size(values) /= nrow(df)) error stop "in append_col, size(values) /= nrow(df)"
+column_ = column
+df%columns = [df%columns, column_]
+df%values  = cbind(df%values, values)
+end subroutine append_col
+
+pure subroutine append_cols(df, columns, values)
+! append a column with specified values to DataFrame df
+class(DataFrame), intent(in out) :: df
+character (len=*), intent(in) :: columns(:)
+real(kind=dp), intent(in) :: values(:,:)
+character (len=nlen_columns), allocatable :: columns_(:)
+if (size(values, 1) /= nrow(df)) error stop "in append_cols, size(values) /= nrow(df)"
+if (size(values, 2) /= size(columns)) error stop "in append_cols, size(values, 2) /= size(columns)"
+columns_ = columns
+df%columns = [df%columns, columns_]
+df%values  = cbind(df%values, values)
+end subroutine append_cols
 
 subroutine allocate_df(df, n1, n2, default_indices, default_columns)
 type(DataFrame), intent(out) :: df
@@ -56,7 +155,7 @@ if (default(.true., default_columns)) then
 end if
 end subroutine allocate_df
 
-function nrow(df) result(num_rows)
+elemental function nrow(df) result(num_rows)
 ! return the # of rows
 type(DataFrame), intent(in) :: df
 integer                     :: num_rows
@@ -67,7 +166,7 @@ else
 end if
 end function nrow
 
-function ncol(df) result(num_col)
+elemental function ncol(df) result(num_col)
 ! return the # of columns
 type(DataFrame), intent(in) :: df
 integer                     :: num_col
@@ -182,10 +281,10 @@ end subroutine read_csv
 ! An optional logical argument 'print_all' may be provided. If it is present
 ! and set to .true., then all rows are printed.
 !------------------------------------------------------------------
-subroutine display_data(self, print_all, fmt_ir, fmt_header, title)
+impure elemental subroutine display_data(self, print_all, fmt_ir, fmt_header, fmt_trailer, title)
 class(DataFrame), intent(in) :: self
 logical, intent(in), optional :: print_all
-character (len=*), intent(in), optional :: fmt_ir, fmt_header, title
+character (len=*), intent(in), optional :: fmt_ir, fmt_header, fmt_trailer, title
 integer :: total, i, n_top, n_bottom
 logical :: print_all_
 character (len=100) :: fmt_ir_, fmt_header_
@@ -193,6 +292,7 @@ fmt_ir_ = default("(i10,*(1x,f10.4))", fmt_ir)
 fmt_header_ = default("(a10,*(1x,a10))", fmt_header)
 print_all_ = default(.false., print_all)
 total = size(self%index)
+if (blank_line_before_display) write(*,*)
 if (present(title)) write(*,"(a)") title
 ! Print header.
 write(*,fmt_header_) "index", (trim(self%columns(i)), i=1,size(self%columns))
@@ -212,21 +312,19 @@ else
       ! Compute number of rows for the top and bottom parts.
       n_top = nrows_print / 2
       n_bottom = nrows_print - n_top
-      
       ! Print first n_top rows.
       do i = 1, n_top
          write(*,fmt_ir_) self%index(i), self%values(i,:)
       end do
-      
       ! Indicate omitted rows.
       write(*,*) "   ... (", total - nrows_print, " rows omitted) ..."
-      
       ! Print last n_bottom rows.
       do i = total - n_bottom + 1, total
          write(*,fmt_ir_) self%index(i), self%values(i,:)
       end do
    end if
 end if
+if (present(fmt_trailer)) write(*,fmt_trailer)
 end subroutine display_data
 
 !------------------------------------------------------------------
@@ -450,11 +548,12 @@ function power_df_n(df, n) result(res)
 integer        , intent(in) :: n
 type(DataFrame), intent(in) :: df
 type(DataFrame)             :: res
+
 res = df
 if (allocated(res%values)) res%values = res%values**n
 end function power_df_n
 
-function power_df_x(df, x) result(res)
+elemental function power_df_x(df, x) result(res)
 ! return df**x element-wise
 real(kind=dp), intent(in)   :: x
 type(DataFrame), intent(in) :: df
@@ -462,4 +561,17 @@ type(DataFrame)             :: res
 res = df
 if (allocated(res%values)) res%values = res%values**x
 end function power_df_x
+
+elemental function subset_stride(df, stride) result(df_new)
+type(DataFrame), intent(in) :: df
+integer, intent(in) :: stride
+type(DataFrame) :: df_new
+! print*,"df%index(1:nrow(df):stride)", df%index(1:nrow(df):stride)
+! print*,"df%values(1:nrow(df):stride, :)", df%values(1:nrow(df):stride, :)
+! in the line below, some parentheses are added to work around
+! compiler bugs
+if (stride == 0) error stop "in subset_stride, stride must nost equal 0"
+df_new = DataFrame(index=(df%index(1:nrow(df):stride)), &
+   columns=df%columns, values = (df%values(1:nrow(df):stride, :)))
+end function subset_stride
 end module dataframe_mod
