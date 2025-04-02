@@ -15,7 +15,7 @@ character(len=*), parameter :: fmt_ci = "(a25,':',*(1x,i20))", &
    fmt_cr = "(a25,':',*(1x,f20.6))", fmt_cc = "(a25,':',*(1x,a))",&
    fmt_par = "(a25,':',*(f10.6))"
 integer, parameter :: nacf=10, iseed = 123, n = 10**4 ! # of observations
-integer, parameter :: nsim = 100 ! # of simulations 
+integer, parameter :: nsim = 10 ! # of simulations 
 integer :: isim, info, niter_nm
 real(kind=dp) :: ret(n), sigma(n), sigma_est(n), rmse_sigma(nsim), &
    correl_sigma(nsim)
