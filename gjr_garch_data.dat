@@ -1,10 +1,10 @@
 spy_efa_eem_tlt.csv ! prices_file
-3 1000 ! max_col -- max # of columns of prices to read
+2 3 1000 ! max_col -- max # of columns of prices to read
 100.0 ! scale_ret
 0 ! nacf -- # of autocorrelations of squared returns to print
-3 normal t6 t10 ; 9 normal t5 t6 t7 t8 t9 t10 t20 laplace ! dist -- conditional distribution
+1 normal ; 3 normal t6 t10 ; 9 normal t5 t6 t7 t8 t9 t10 t20 laplace ! dist -- conditional distribution
 uobyqa nelder-mead ! opt_method
-100000 ! max_iter_nm -- max # of Nelder-Mead iterations
+100000 ! max_iter -- max # of optimizer iterations
 1.0e-20 ! lik_tol -- convergence criterion for GARCH likelihood
 0.1 ! rhobeg -- initial value of trust region radius used in uobyqa
 1.0e-8 ! rhoend -- final value of trust region radius used in uobyqa
