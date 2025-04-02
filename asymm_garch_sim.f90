@@ -1,13 +1,6 @@
 module asymm_garch_sim_mod
 use        kind_mod, only: dp
-! use optim_methods_mod, only: nelder_mead_str, uobyqa_str
-! use nelder_mead_mod, only: nelder_mead
-! use     obj_fun_mod, only: xret, xdist, gjr_garch_sigma, obj_sub
-! use basic_stats_mod, only: variance
-! use      random_mod, only: random_normal
-! use   constants_mod, only: pi
 use        util_mod, only: assert_equal, default
-! use      uobyqa_mod, only: uobyqa
 implicit none
 private
 public :: simulate_shift_twist_garch
