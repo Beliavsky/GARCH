@@ -37,7 +37,7 @@ n = size(ret)
 if (present(sigma)) call assert_equal(size(sigma), n, &
    "in simulate_shift_twist_garch, size(sigma)")
 uc_var = omega / (1.0_dp - (1.0_dp + c_shift**2) * (alpha + 0.5_dp*gamma) - &
-   beta)
+   beta) ! unconditional (equilibirium) variance
 if (iprint_ > 0) print*,"uc_var:", uc_var
 sigma2 = uc_var
 do i = 1, n
