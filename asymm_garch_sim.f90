@@ -29,15 +29,18 @@ real(kind=dp), intent(in)  :: z(:) ! noise with 0 mean and unit variance
 real(kind=dp), intent(out) :: ret(:)
 real(kind=dp), intent(out), optional :: sigma(:)
 integer, intent(in), optional :: iprint
-real(kind=dp) :: uc_var, sigma2, noise, noise_shift
+real(kind=dp) :: uc_var, sigma2, noise, noise_shift, pi_dp, phi_c, cdf_c, q
 integer :: i, iprint_, n
 real(kind=dp) :: sigma_i
 iprint_ = default(0, iprint)
 n = size(ret)
 if (present(sigma)) call assert_equal(size(sigma), n, &
    "in simulate_shift_twist_garch, size(sigma)")
-uc_var = omega / (1.0_dp - (1.0_dp + c_shift**2) * (alpha + 0.5_dp*gamma) - &
-   beta) ! unconditional (equilibirium) variance
+pi_dp = acos(-1.0_dp)
+phi_c = exp(-0.5_dp*c_shift**2) / sqrt(2.0_dp*pi_dp)
+cdf_c = 0.5_dp * (1.0_dp + erf(c_shift / sqrt(2.0_dp)))
+q = (1.0_dp + c_shift**2) * cdf_c + c_shift * phi_c
+uc_var = omega / (1.0_dp - beta - (1.0_dp + c_shift**2) * alpha - gamma * q) ! unconditional variance
 if (iprint_ > 0) print*,"uc_var:", uc_var
 sigma2 = uc_var
 do i = 1, n
